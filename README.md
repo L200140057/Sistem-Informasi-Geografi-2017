@@ -1,1 +1,1 @@
-# Sistem-Informasi-Geografis-2017
+# Sistem-Informasi-Geografi-2017
