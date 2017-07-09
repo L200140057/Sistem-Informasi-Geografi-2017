@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tugas 05 - Materi dari BAB 7</title>
+    <style type="text/css">
+        html { height: 100% }
+        body { height: 100%; margin: 5; }
+        #peta_utama { width: 100%; height: 500px; }
+        #DirectionsListDiv {overflow-y: auto; max-height:200px;}
+    </style>
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <script type="text/javascript"
+            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDkO2_JpI6P4x2d0RhnI0JKSXY2ZPz36KI&libraries=places&callback=initMap" async defer>
+    </script>
+    <script type="text/javascript">
+    var autocomplete = {};
+    var geocoder,markers,directionsService,directionsRenderer,elevator,distanceMatrixService;
+
+	function initMap() {
+        
+	    var peta_df_utama = new google.maps.Map(document.getElementById('peta_utama'), {
+	      center: {lat: -7.557, lng: 110.769},
+	      zoom: 14
+	    });
+
+        if(navigator.geolocation){
+            navigator.geolocation.getCurrentPosition(function(posisi){
+                var nilai_lat       = posisi.coords.latitude;
+                var nilai_long      = posisi.coords.longitude;
+                var lokasi_fix =  new google.maps.LatLng(nilai_lat, nilai_long);
+                peta_df_utama.setCenter(lokasi_fix);
+            }); 
+        }else{
+            document.getElementById.innerHTML = "Tidak Support HTML5!!";
+        }
+
+        var infowindow = new google.maps.InfoWindow();
+        var marker = new google.maps.Marker({
+            map: peta_df_utama,
+            anchorPoint: new google.maps.Point(0, -29)
+        });
+
+        geocoder = new google.maps.Geocoder();
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer();
+        distanceMatrixService = new google.maps.DistanceMatrixService();
+        markers = [];
+
+        directionsRenderer.setMap(peta_df_utama);
+        directionsRenderer.setPanel(document.getElementById('DirectionsListDiv'));
+
+        var inputan = document.getElementsByClassName("autocomplete");
+        var autocompletes = [];
+
+        for (var i = 0; i < inputan.length; i++) {
+            var autocomplete = new google.maps.places.Autocomplete(inputan[i]);
+            autocomplete.inputId = inputan[i].id;
+            autocomplete.addListener('place_changed', infolengkap);
+            autocompletes.push(autocomplete);
+        }
+
+        function infolengkap(){
+
+            infowindow.close();
+            marker.setVisible(false);
+
+            var lokasi = this.getPlace();
+            if (!lokasi.geometry) {
+                window.alert("Lokasi tidak memiliki nilai geometry");
+                return;
+            }
+
+            if (lokasi.geometry.viewport) {
+                peta_df_utama.fitBounds(lokasi.geometry.viewport);
+            } else {
+                peta_df_utama.setCenter(lokasi.geometry.location);
+                peta_df_utama.setZoom(17);
+            }
+
+            marker.setPosition(lokasi.geometry.location);
+            marker.setVisible(true);
+            
+            var marker_tmp = new google.maps.Marker({
+                        map: peta_df_utama,
+                        position: lokasi.geometry.location,
+                        zIndex: -10
+                    });
+            markers.push(marker_tmp);
+
+            infowindow.setContent(lokasi.formatted_address);
+            infowindow.open(peta_df_utama, marker);
+
+            var alamat_lengkap = '';
+            if (lokasi.address_components) {
+                alamat_lengkap = [
+                  (lokasi.address_components[0] && lokasi.address_components[0].short_name || ''),
+                  (lokasi.address_components[1] && lokasi.address_components[1].short_name || ''),
+                  (lokasi.address_components[2] && lokasi.address_components[2].short_name || '')
+                ].join(' ');
+            }
+
+            var konten = 'Lokasi :<strong>' + alamat_lengkap + '</strong><br/>';
+            for (var i = 0; i < lokasi.address_components.length; i++) {
+                if(lokasi.address_components[i].types[0] == 'postal_code'){
+                    document.getElementById('kodepos_'+this.inputId).innerHTML = lokasi.address_components[i].long_name;
+                }
+                if(lokasi.address_components[i].types[0] == 'country'){
+                    document.getElementById('negara_'+this.inputId).innerHTML = lokasi.address_components[i].long_name;
+                }
+            }
+        document.getElementById('lokasi_'+this.inputId).innerHTML = alamat_lengkap;
+        document.getElementById('lat_'+this.inputId).innerHTML = lokasi.geometry.location.lat();
+        document.getElementById('lng_'+this.inputId).innerHTML = lokasi.geometry.location.lng();
+        
+
+        }
+
+	}
+    function makeDistanceMatrixRequest(dari,tujuan){
+        distanceMatrixService.getDistanceMatrix(
+            {
+                origins: [dari],
+                destinations: [tujuan],
+                travelMode: google.maps.TravelMode.DRIVING,
+            }, 
+            getDistanceMatrixResult
+        );
+    }
+    function getDistanceMatrixResult(result, status){
+
+    if (status == google.maps.DistanceMatrixStatus.OK) {
+        var originAddresses = result.originAddresses;
+        var destinationAddresses = result.destinationAddresses;
+
+        for (var i = 0, l=originAddresses.length; i < l; i++) {
+            var elements = result.rows[i].elements;
+            for (var j = 0, m=elements.length; j < m; j++) {
+                var originAddress = originAddresses[i];
+                var destinationAddress = destinationAddresses[j];
+                
+                var element = elements[j];
+                
+                var distance =  element.distance.text;
+                var duration = element.duration.text;
+
+                document.getElementById('nilai_jarak').innerHTML = distance;
+                document.getElementById('nilai_durasi').innerHTML = duration;
+
+            }
+        }
+    }
+    else
+    {
+        alert('Tidak bisa mendapatkan jaraknya, dikarenakan : ' + status);
+    }
+}
+    function getDirections()
+    {
+        var cek_dari    = document.getElementById("dari").value;
+        var cek_tujuan  = document.getElementById("tujuan").value;
+        if(cek_dari  == "" || cek_tujuan == ""){
+            alert("Salah satu lokasi belum di isi..");
+            return;
+        }
+        elevator = new google.maps.ElevationService();
+
+        var waypnts = [];
+        var directionRequest,markerPosition,markerPositions;
+        
+        if (markers.length > 2)
+        {
+            for (var i=1, l=markers.length;i<=l-2;i++)
+            {
+                waypnts.push({
+                    location: markers[i].getPosition(),
+                    stopover: true
+                });
+            }
+
+            markerPositions = [markers[0].getPosition(),markers[markers.length-1].getPosition()];
+            makeDistanceMatrixRequest(markers[0].getPosition(),markers[markers.length-1].getPosition());
+        
+            directionRequest = {
+                origin:markers[0].getPosition(),
+                destination:markers[markers.length-1].getPosition(),
+                waypoints: waypnts,
+                travelMode: google.maps.TravelMode.DRIVING
+            };                      
+        }
+        else
+        {
+
+            markerPositions = [markers[0].getPosition(),markers[markers.length-1].getPosition()];
+            makeDistanceMatrixRequest(markers[0].getPosition(),markers[markers.length-1].getPosition());
+            directionRequest = {
+                origin:markers[0].getPosition(),
+                destination: markers[markers.length-1].getPosition(),
+                travelMode: google.maps.TravelMode.DRIVING
+            };
+        }
+        
+        directionsService.route(directionRequest, function(result, status) {
+            if (status == google.maps.DirectionsStatus.OK) {
+                directionsRenderer.setDirections(result);
+            }
+            else
+            {
+                alert('Tidak bisa mendapatkan petunjuk arah, dikarenakan : ' + status);
+            }
+        });
+        elevator.getElevationForLocations({'locations': markerPositions}, function(results, status) {
+            if (status == google.maps.ElevationStatus.OK) {
+                if (results) {
+                    document.getElementById('nilai_elevation').innerHTML = results[0].elevation;
+                }
+            }else{
+                alert("Elevation request failed because: " + status);
+            }
+        });
+        
+    }
+    </script>
+
+</head>
+<body class="hold-transition skin-black layout-top-nav">
+    <div class="wrapper">
+
+        <header class="main-header">
+            <nav class="navbar navbar-static-top">
+                <div class="container">
+                    <div class="navbar-header">
+                    </div>
+                    <!-- /.navbar-custom-menu -->
+                </div>
+                <!-- /.container-fluid -->
+            </nav>
+        </header>       <!-- Full Width Column -->
+        <div class="content-wrapper">
+            <div class="container">             <!-- Main content -->
+                <section class="content">
+                    <div class="row">
+                        <div class="col-md-12">
+                        <div class="box box-primary" style="margin-top: 30px;">
+                        <div class="box-header with-border" align="center">
+                            <h3 class="box-title">Tugas 05 - Materi dari BAB 7</h3>
+                        </div>
+                        <div class="box-body">
+
+                            <div class="row">
+                            <div class="col-md-5">
+                            <div class="form-group">
+			                  <label>Dari</label>
+			                  <input type="text" class="form-control autocomplete" placeholder="Masukan Lokasi Awal" id="dari">
+			                </div>
+			                <div class="form-group">
+			                  <label>Detail</label>
+			                  <ul id="geoData_dari">
+							    <li>Alamat Lengkap: <span id="lokasi_dari"></span></li>
+							    <li>Kode Pos: <span id="kodepos_dari"></span></li>
+							    <li>Negara: <span id="negara_dari"></span></li>
+							    <li>Latitude: <span id="lat_dari"></span></li>
+							    <li>Longitude: <span id="lng_dari"></span></li>
+
+							  </ul>
+			                </div>
+                            </div>
+                            <div class="col-md-2">
+                            <div class="form-group">
+                            <label>&nbsp;</label>
+                            </div>
+                            </div>
+                            <div class="col-md-5">
+                            <div class="form-group">
+			                  <label>Ke</label>
+			                  <input type="text" class="form-control autocomplete" placeholder="Masukan Lokasi Tujuan" id="tujuan">
+			                </div>
+			                <div class="form-group">
+			                  <label>Detail</label>
+			                  <ul id="geoData_tujuan">
+							    <li>Alamat Lengkap: <span id="lokasi_tujuan"></span></li>
+							    <li>Kode Pos: <span id="kodepos_tujuan"></span></li>
+							    <li>Negara: <span id="negara_tujuan"></span></li>
+							    <li>Latitude: <span id="lat_tujuan"></span></li>
+							    <li>Longitude: <span id="lng_tujuan"></span></li>
+							  </ul>
+			                </div>
+                            </div>
+                            </div>
+
+                            <div class="box box-default">
+                            <div class="box-header with-border">
+                                <h3 class="box-title">Additional Information</h3>
+                            </div>
+                            <div class="box-body">
+                            <div class="form-group">
+                              <label>Informasi</label>
+                              <ul id="geoData_tujuan">
+                                <li>Nilai Elevation: <span id="nilai_elevation">-</span></li>
+                                <li>Jarak: <span id="nilai_jarak">-</span></li>
+                                <li>Durasi: <span id="nilai_durasi">-</span></li>
+                              </ul>
+                            </div>
+                            </div>
+                            </div>
+
+                            <div class="box box-success collapsed-box">
+                            <div class="box-header with-border">
+                            <button type="button" class="btn btn-block btn-default" id = "getDirectionsBtn" onclick="getDirections()" data-toggle="tooltip" title="Klik Untuk Mendapatkan Petunjuk Arahnya"><i class="fa fa-map-signs"></i> Cari Arah</button>
+                              <h3 class="box-title">Petunjuk Arah</h3>
+                              <!-- /.box-tools -->
+                            </div>
+                            <!-- /.box-header -->
+                            <div class="box-body">
+                              <div id="DirectionsListContainerDiv">
+                                <div id="DirectionsListDiv">
+                                </div>
+                            </div>
+                            </div>
+                            <!-- /.box-body -->
+                          </div>
+
+                            <div class="box box-warning">
+                            <div class="box-header with-border">
+                                <h3 class="box-title">Google Maps</h3>
+                            </div>
+                            <div class="box-body">
+                            <div id="peta_utama"></div>
+                            </div>
+                            </div>
+
+
+                            
+                        </div>
+                                <!-- /.box-body -->
+                            </div>
+                            <!-- /.box -->
+                        </div>
+                    </div>
+                </section>
+                <!-- /.content -->
+            </div>
+            <!-- /.container -->
+        </div>
+        <!-- /.content-wrapper -->
+        <footer class="main-footer">
+            <div class="container">
+                <div class="pull-right hidden-xs"></div>
+            </div>
+            <!-- /.container -->
+        </footer>
+    </div>
+</body>
+</html>
